@@ -1,3 +1,5 @@
+import { SignUpDto } from './dtos/sign-up.dto';
+import { SignInDto } from './dtos/sign-in.dto';
 import {
   Body,
   Controller,
@@ -8,29 +10,43 @@ import {
   Param,
   Query,
   NotFoundException,
+  Session,
+  UseGuards,
 } from '@nestjs/common';
-import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { UsersService } from './users.service';
 import { Serialize } from '../interceptors/serialize.interceptor';
 import { UserDto } from './dtos/user.dto';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { AuthGuard } from '../guards/auth.guard';
+import { User } from './user.entity';
+import { JwtGuard } from 'src/guards/jwt-auth.guard';
 
 @Controller('auth')
-@Serialize(UserDto)
 export class UsersController {
   constructor(
     private usersService: UsersService,
     private authService: AuthService,
   ) {}
 
+  @Get('/whoami')
+  @UseGuards(JwtGuard)
+  whoAmI(@CurrentUser() user: User) {
+    return user ;
+  }
+
   @Post('/signup')
-  createUser(@Body() body: CreateUserDto) {
-    this.authService.signUp(body.email, body.password);
+  async createUser(@Body() body: SignUpDto) {
+    return this.authService.signUp(body.username, body.email, body.password);
   }
   @Post('/signin')
-  SignUser(@Body() body: CreateUserDto) {
-    this.authService.signIn(body.email, body.password);
+  async SignUser(@Body() body: SignInDto) {
+    return this.authService.signIn(body.email, body.password);
+  }
+  @Post('/signout')
+  SignOutUser(@Session() session: any) {
+    session.userId = null;
   }
 
   @Get('/:id')

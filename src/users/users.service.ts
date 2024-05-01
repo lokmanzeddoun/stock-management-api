@@ -5,13 +5,18 @@ import { User } from './user.entity';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectRepository(User) private repo: Repository<User>) {}
-  create(email: string, password: string) {
-    const user = this.repo.create({ email, password });
+  constructor(@InjectRepository(User) private repo: Repository<User> ,) {}
+  create(username: string, email: string, password: string) {
+    const user = this.repo.create({ username, email, password });
 
     return this.repo.save(user);
   }
+  
+
   findOne(id: number) {
+    if (!id) {
+      return null;
+    }
     return this.repo.findOne({ where: { id: id } });
   }
   find(email: string) {

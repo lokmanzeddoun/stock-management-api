@@ -7,12 +7,26 @@ import {
 import { randomBytes, scrypt as _script } from 'crypto';
 import { NotFoundError } from 'rxjs';
 import { promisify } from 'util';
+import { JwtService } from '@nestjs/jwt';
+interface User {
+  username: string;
+  email: string;
+  password: string;
+  role: string;
+}
 
 const scrypt = promisify(_script);
 @Injectable()
 export class AuthService {
-  constructor(private usersService: UsersService) {}
-  async signUp(email: string, password: string) {
+  private users: User[] = [];
+  constructor(
+    private usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
+  createAccessToken(email: string, role: string): { accessToken: string } {
+    return { accessToken: this.jwtService.sign({ sub: [email, role] }) };
+  }
+  async signUp(username: string, email: string, password: string) {
     // 1- See If Email Is In use
     const users = await this.usersService.find(email);
     if (users.length) {
@@ -26,9 +40,18 @@ export class AuthService {
     // 2.3 - Join The hashed result and the salt together
     const result = salt + '.' + hash.toString('hex');
     // 3- Create A new User And save it
-    const user = await this.usersService.create(email, result);
+    const newUser = await this.usersService.create(username, email, result);
     // 4-return The user
-    return user;
+    const user1 = {
+      username: newUser.username,
+      email: newUser.email,
+      role: newUser.role,
+    };
+    const data = {
+      user: user1,
+      access_token: this.createAccessToken(user1.email, user1.role).accessToken,
+    };
+    return data;
   }
   async signIn(email: string, password: string) {
     const [user] = await this.usersService.find(email);
@@ -41,6 +64,15 @@ export class AuthService {
     if (storedHash !== hash.toString('hex')) {
       throw new BadRequestException('Invalid Email Or Password');
     }
-    return user;
+    const user1 = {
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    };
+    const data = {
+      user: user1,
+      access_token: this.createAccessToken(user1.email, user1.role).accessToken,
+    };
+    return data;
   }
 }

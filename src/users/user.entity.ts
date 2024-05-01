@@ -12,11 +12,20 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ nullable: false })
+  username: string;
+
+  @Column({ nullable: false, unique: true })
   email: string;
 
   @Column()
   password: string;
+
+  @Column({
+    default: 'user',
+    enum: ['user', 'admin', 'vendor', 'store manager', 'inventory manager'],
+  })
+  role: string;
 
   @AfterInsert()
   logInsert() {
