@@ -1,27 +1,29 @@
+import { MailService } from 'src/mail/mail.service';
 import { UsersService } from './users.service';
+import * as crypto from 'crypto';
+import { ForgotService } from 'src/forgot/forgot.service';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   NotFoundException,
+  HttpStatus,
 } from '@nestjs/common';
 import { randomBytes, scrypt as _script } from 'crypto';
-import { NotFoundError } from 'rxjs';
 import { promisify } from 'util';
 import { JwtService } from '@nestjs/jwt';
-interface User {
-  username: string;
-  email: string;
-  password: string;
-  role: string;
-}
+import { User } from './user.entity';
+
 
 const scrypt = promisify(_script);
 @Injectable()
 export class AuthService {
-  private users: User[] = [];
   constructor(
     private usersService: UsersService,
     private readonly jwtService: JwtService,
+    private mailService: MailService,
+    private forgotService: ForgotService,
   ) {}
   createAccessToken(email: string, role: string): { accessToken: string } {
     return { accessToken: this.jwtService.sign({ sub: [email, role] }) };
@@ -75,4 +77,125 @@ export class AuthService {
     };
     return data;
   }
+  async forgotPassword(email: string): Promise<void> {
+    const [user] = await this.usersService.find(email);
+
+    if (!user) {
+      throw new HttpException(
+        {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            email: 'emailNotExists',
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const hash = crypto
+      .createHash('sha256')
+      .update(randomStringGenerator())
+      .digest('hex');
+    await this.forgotService.create({
+      hash,
+      user,
+    });
+
+    await this.mailService.forgotPassword({
+      to: email,
+      data: {
+        hash,
+      },
+    });
+  }
+  async resetPassword(hash: string, password: string): Promise<void> {
+    const forgot = await this.forgotService.findOne({
+      where: {
+        hash,
+      },
+    });
+
+    if (!forgot) {
+      throw new HttpException(
+        {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            hash: `notFound`,
+          },
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+    const user = forgot.user;
+    user.password = password;
+
+    await user.save();
+
+    await this.forgotService.softDelete(forgot.id);
+  }
+
+  // async update(
+  //   userJwtPayload: JwtPayloadType,
+  //   userDto: AuthUpdateDto,
+  // ): Promise<NullableType<User>> {
+  //   if (userDto.password) {
+  //     if (userDto.oldPassword) {
+  //       const currentUser = await this.usersService.findOne({
+  //         id: userJwtPayload.id,
+  //       });
+
+  //       if (!currentUser) {
+  //         throw new HttpException(
+  //           {
+  //             status: HttpStatus.UNPROCESSABLE_ENTITY,
+  //             errors: {
+  //               user: 'userNotFound',
+  //             },
+  //           },
+  //           HttpStatus.UNPROCESSABLE_ENTITY,
+  //         );
+  //       }
+
+  //       const isValidOldPassword = await bcrypt.compare(
+  //         userDto.oldPassword,
+  //         currentUser.password,
+  //       );
+
+  //       if (!isValidOldPassword) {
+  //         throw new HttpException(
+  //           {
+  //             status: HttpStatus.UNPROCESSABLE_ENTITY,
+  //             errors: {
+  //               oldPassword: 'incorrectOldPassword',
+  //             },
+  //           },
+  //           HttpStatus.UNPROCESSABLE_ENTITY,
+  //         );
+  //       } else {
+  //         await this.sessionService.softDelete({
+  //           user: {
+  //             id: currentUser.id,
+  //           },
+  //           excludeId: userJwtPayload.sessionId,
+  //         });
+  //       }
+  //     } else {
+  //       throw new HttpException(
+  //         {
+  //           status: HttpStatus.UNPROCESSABLE_ENTITY,
+  //           errors: {
+  //             oldPassword: 'missingOldPassword',
+  //           },
+  //         },
+  //         HttpStatus.UNPROCESSABLE_ENTITY,
+  //       );
+  //     }
+  //   }
+
+  //   await this.usersService.update(userJwtPayload.id, userDto);
+
+  //   return this.usersService.findOne({
+  //     id: userJwtPayload.id,
+  //   });
+  // }
 }

@@ -1,5 +1,7 @@
 import { SignUpDto } from './dtos/sign-up.dto';
 import { SignInDto } from './dtos/sign-in.dto';
+import { AuthForgotPasswordDto } from './dtos/auth-forgot-password.dto';
+import { AuthResetPasswordDto } from './dtos/auth-reset-password.dto';
 import {
   Body,
   Controller,
@@ -12,6 +14,8 @@ import {
   NotFoundException,
   Session,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { UsersService } from './users.service';
@@ -33,7 +37,7 @@ export class UsersController {
   @Get('/whoami')
   @UseGuards(JwtGuard)
   whoAmI(@CurrentUser() user: User) {
-    return user ;
+    return user;
   }
 
   @Post('/signup')
@@ -44,11 +48,21 @@ export class UsersController {
   async SignUser(@Body() body: SignInDto) {
     return this.authService.signIn(body.email, body.password);
   }
-  @Post('/signout')
-  SignOutUser(@Session() session: any) {
-    session.userId = null;
-  }
 
+  @Post('/forgot/password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: AuthForgotPasswordDto) {
+    this.authService.forgotPassword(forgotPasswordDto.email);
+    return { msg: 'Message Sent To User' };
+  }
+  @Post('reset/password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  resetPassword(@Body() resetPasswordDto: AuthResetPasswordDto): Promise<void> {
+    return this.authService.resetPassword(
+      resetPasswordDto.hash,
+      resetPasswordDto.password,
+    );
+  }
   @Get('/:id')
   async findUser(@Param('id') id: string) {
     const user = await this.usersService.findOne(parseInt(id));
