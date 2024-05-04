@@ -26,7 +26,9 @@ import { NullableType } from 'src/utils/types/nullable.type';
 import { UpdateArticleDto } from './dtos/update-article.dto';
 import { CurrentUser } from 'src/users/decorators/current-user.decorator';
 import { User } from 'src/users/user.entity';
-
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+@ApiTags('articles')
+@ApiBearerAuth()
 @Roles(RoleEnum['store manager'])
 @UseGuards(JwtGuard, RolesGuard)
 @Controller('articles')

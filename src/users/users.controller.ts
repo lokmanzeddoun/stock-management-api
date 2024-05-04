@@ -29,7 +29,9 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { AuthGuard } from '../guards/auth.guard';
 import { User } from './user.entity';
 import { JwtGuard } from 'src/guards/jwt-auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class UsersController {
   constructor(
@@ -80,10 +82,7 @@ export class UsersController {
     return this.usersService.find(email);
   }
 
-  @Delete('/:id')
-  removeUser(@Param('id') id: string) {
-    return this.usersService.remove(parseInt(id));
-  }
+  @ApiBearerAuth()
   @Patch('me')
   @UseGuards(JwtGuard)
   @HttpCode(HttpStatus.OK)
@@ -93,9 +92,17 @@ export class UsersController {
   ): Promise<NullableType<User>> {
     return this.authService.update(request.currentUser, userDto);
   }
-
+  @ApiBearerAuth()
   @Patch('/:id')
+  @UseGuards(JwtGuard)
   updateUser(@Param('id') id: string, @Body() body: UpdateUserDto) {
     return this.usersService.update(parseInt(id), body);
+  }
+  @ApiBearerAuth()
+  @Delete('/:id')
+  @UseGuards(JwtGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  public async delete(@Param('id') id: string): Promise<User> {
+    return this.usersService.remove(parseInt(id));
   }
 }

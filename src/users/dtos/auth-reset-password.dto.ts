@@ -1,6 +1,8 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, MaxLength, MinLength, Matches } from 'class-validator';
 
 export class AuthResetPasswordDto {
+  @ApiProperty()
   @MinLength(8, {
     message: 'password too short',
   })
@@ -12,7 +14,7 @@ export class AuthResetPasswordDto {
   })
   @IsNotEmpty()
   password: string;
-
+  @ApiProperty()
   @IsNotEmpty()
   hash: string;
 }

@@ -5,13 +5,14 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-
+import { ApiProperty } from '@nestjs/swagger';
 export class SignInDto {
+  @ApiProperty()
   @IsEmail()
   @MaxLength(255)
   @IsNotEmpty()
   readonly email: string;
-
+  @ApiProperty()
   @MinLength(8, {
     message: 'password too short',
   })
