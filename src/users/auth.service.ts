@@ -3,6 +3,8 @@ import { UsersService } from './users.service';
 import * as crypto from 'crypto';
 import { ForgotService } from 'src/forgot/forgot.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { JwtPayloadType } from './jwt-payload.type';
+
 import {
   BadRequestException,
   HttpException,
@@ -14,7 +16,8 @@ import { randomBytes, scrypt as _script } from 'crypto';
 import { promisify } from 'util';
 import { JwtService } from '@nestjs/jwt';
 import { User } from './user.entity';
-
+import { NullableType } from 'src/utils/types/nullable.type';
+import { AuthUpdateDto } from './dtos/auth-update.dto';
 
 const scrypt = promisify(_script);
 @Injectable()
@@ -134,68 +137,55 @@ export class AuthService {
     await this.forgotService.softDelete(forgot.id);
   }
 
-  // async update(
-  //   userJwtPayload: JwtPayloadType,
-  //   userDto: AuthUpdateDto,
-  // ): Promise<NullableType<User>> {
-  //   if (userDto.password) {
-  //     if (userDto.oldPassword) {
-  //       const currentUser = await this.usersService.findOne({
-  //         id: userJwtPayload.id,
-  //       });
+  async update(
+    userJwtPayload: JwtPayloadType,
+    userDto: AuthUpdateDto,
+  ): Promise<NullableType<User>> {
+    if (userDto.password) {
+      if (userDto.oldPassword) {
+        const currentUser = await this.usersService.findOne(userJwtPayload[0].id);
 
-  //       if (!currentUser) {
-  //         throw new HttpException(
-  //           {
-  //             status: HttpStatus.UNPROCESSABLE_ENTITY,
-  //             errors: {
-  //               user: 'userNotFound',
-  //             },
-  //           },
-  //           HttpStatus.UNPROCESSABLE_ENTITY,
-  //         );
-  //       }
+        if (!currentUser) {
+          throw new HttpException(
+            {
+              status: HttpStatus.UNPROCESSABLE_ENTITY,
+              errors: {
+                user: 'userNotFound',
+              },
+            },
+            HttpStatus.UNPROCESSABLE_ENTITY,
+          );
+        }
+        const [salt, storedHash] = currentUser.password.split('.');
 
-  //       const isValidOldPassword = await bcrypt.compare(
-  //         userDto.oldPassword,
-  //         currentUser.password,
-  //       );
+        const hash = (await scrypt(userDto.oldPassword, salt, 32)) as Buffer;
 
-  //       if (!isValidOldPassword) {
-  //         throw new HttpException(
-  //           {
-  //             status: HttpStatus.UNPROCESSABLE_ENTITY,
-  //             errors: {
-  //               oldPassword: 'incorrectOldPassword',
-  //             },
-  //           },
-  //           HttpStatus.UNPROCESSABLE_ENTITY,
-  //         );
-  //       } else {
-  //         await this.sessionService.softDelete({
-  //           user: {
-  //             id: currentUser.id,
-  //           },
-  //           excludeId: userJwtPayload.sessionId,
-  //         });
-  //       }
-  //     } else {
-  //       throw new HttpException(
-  //         {
-  //           status: HttpStatus.UNPROCESSABLE_ENTITY,
-  //           errors: {
-  //             oldPassword: 'missingOldPassword',
-  //           },
-  //         },
-  //         HttpStatus.UNPROCESSABLE_ENTITY,
-  //       );
-  //     }
-  //   }
+        if (storedHash !== hash.toString('hex')) {
+          throw new HttpException(
+            {
+              status: HttpStatus.UNPROCESSABLE_ENTITY,
+              errors: {
+                oldPassword: 'incorrectOldPassword',
+              },
+            },
+            HttpStatus.UNPROCESSABLE_ENTITY,
+          );
+        }
+      } else {
+        throw new HttpException(
+          {
+            status: HttpStatus.UNPROCESSABLE_ENTITY,
+            errors: {
+              oldPassword: 'missingOldPassword',
+            },
+          },
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        );
+      }
 
-  //   await this.usersService.update(userJwtPayload.id, userDto);
+      await this.usersService.update(userJwtPayload[0].id, userDto);
 
-  //   return this.usersService.findOne({
-  //     id: userJwtPayload.id,
-  //   });
-  // }
+      return this.usersService.findOne(userJwtPayload[0].id);
+    }
+  }
 }

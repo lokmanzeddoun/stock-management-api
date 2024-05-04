@@ -4,8 +4,10 @@ import { DeepPartial, Repository } from 'typeorm';
 import { Article } from './article.entity';
 import { CreateArticleDto } from './dtos/create-article.dto';
 import { NullableType } from 'src/utils/types/nullable.type';
+
 import { EntityCondition } from 'src/utils/types/entity-condition.type';
 import { IPaginationOptions } from 'src/utils/types/pagination-options';
+import { User } from 'src/users/user.entity';
 
 @Injectable()
 export class ArticlesService {
@@ -14,7 +16,10 @@ export class ArticlesService {
     private articlesRepository: Repository<Article>,
   ) {}
 
-  async create(createProfileDto: CreateArticleDto): Promise<Article> {
+  async create(
+    createProfileDto: CreateArticleDto,
+    userId: User['id'],
+  ): Promise<Article> {
     const [articles] = await this.articlesRepository.find({
       where: { title: createProfileDto.title },
     });
@@ -25,9 +30,8 @@ export class ArticlesService {
     if (originalDate < new Date()) {
       throw new BadRequestException('This Article Is Expired');
     }
-    return this.articlesRepository.save(
-      this.articlesRepository.create(createProfileDto),
-    );
+    Object.assign(createProfileDto, { user: userId });
+    return this.articlesRepository.save(createProfileDto);
   }
   findManyWithPagination(
     paginationOptions: IPaginationOptions,
@@ -43,16 +47,22 @@ export class ArticlesService {
     });
   }
 
-  update(id: Article['id'], payload: DeepPartial<Article>): Promise<Article> {
-    return this.articlesRepository.save(
-      this.articlesRepository.create({
-        id,
-        ...payload,
-      }),
-    );
+  async update(
+    id: Article['id'],
+    payload: DeepPartial<Article>,
+  ): Promise<Article> {
+    console.log(payload);
+    const article = await this.articlesRepository.findOne({
+      where: { id: id },
+    });
+    if (!article) {
+      throw new Error('article not found');
+    }
+    Object.assign(article, payload);
+    return this.articlesRepository.save(article);
   }
 
-  async softDelete(id: Article['id']): Promise<void> {
-    await this.articlesRepository.softDelete(id);
+  async Delete(id: Article['id']): Promise<void> {
+    await this.articlesRepository.delete(id);
   }
 }

@@ -2,9 +2,12 @@ import { SignUpDto } from './dtos/sign-up.dto';
 import { SignInDto } from './dtos/sign-in.dto';
 import { AuthForgotPasswordDto } from './dtos/auth-forgot-password.dto';
 import { AuthResetPasswordDto } from './dtos/auth-reset-password.dto';
+import { AuthUpdateDto } from './dtos/auth-update.dto';
+import { NullableType } from 'src/utils/types/nullable.type';
 import {
   Body,
   Controller,
+  Request,
   Post,
   Get,
   Patch,
@@ -80,6 +83,15 @@ export class UsersController {
   @Delete('/:id')
   removeUser(@Param('id') id: string) {
     return this.usersService.remove(parseInt(id));
+  }
+  @Patch('me')
+  @UseGuards(JwtGuard)
+  @HttpCode(HttpStatus.OK)
+  public update(
+    @Request() request,
+    @Body() userDto: AuthUpdateDto,
+  ): Promise<NullableType<User>> {
+    return this.authService.update(request.currentUser, userDto);
   }
 
   @Patch('/:id')

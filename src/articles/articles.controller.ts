@@ -24,6 +24,9 @@ import { infinityPagination } from 'src/utils/types/infinity-pagination';
 import { InfinityPaginationResultType } from 'src/utils/types/infinity-pagination-result.type';
 import { NullableType } from 'src/utils/types/nullable.type';
 import { UpdateArticleDto } from './dtos/update-article.dto';
+import { CurrentUser } from 'src/users/decorators/current-user.decorator';
+import { User } from 'src/users/user.entity';
+
 @Roles(RoleEnum['store manager'])
 @UseGuards(JwtGuard, RolesGuard)
 @Controller('articles')
@@ -32,8 +35,11 @@ export class ArticlesController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createProfileDto: CreateArticleDto): Promise<Article> {
-    return this.articleService.create(createProfileDto);
+  create(
+    @Body() createProfileDto: CreateArticleDto,
+    @CurrentUser() user: User,
+  ): Promise<Article> {
+    return this.articleService.create(createProfileDto, user[0].id);
   }
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -44,7 +50,6 @@ export class ArticlesController {
     if (limit > 50) {
       limit = 50;
     }
-
     return infinityPagination(
       await this.articleService.findManyWithPagination({
         page,
@@ -56,6 +61,7 @@ export class ArticlesController {
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string): Promise<NullableType<Article>> {
+    console.log('hello');
     return this.articleService.findOne({ id: +id });
   }
 
@@ -70,6 +76,6 @@ export class ArticlesController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: number): Promise<void> {
-    return this.articleService.softDelete(id);
+    return this.articleService.Delete(id);
   }
 }
